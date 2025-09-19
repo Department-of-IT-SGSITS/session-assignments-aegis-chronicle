@@ -14,6 +14,11 @@ from textblob import TextBlob
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
+import logging
+from db_utils import init_db, email_exists, add_subscriber
+# from email_utils import send_confirmation_email
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
 load_dotenv()
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
@@ -197,3 +202,27 @@ else:
         st.stop()
     articles = fetch_news(query, num_articles, start_date, end_date)
     run_analysis(articles, f"'{query}'")
+
+st.markdown("---")
+init_db()
+st.header("Subscribe for Nightly News Digest")
+
+with st.form("subscribe_form", clear_on_submit=True):
+    name = st.text_input("Name", placeholder="Your Name")
+    email = st.text_input("Email", placeholder="your@email.com")
+    submitted = st.form_submit_button("Subscribe")
+
+    if submitted:
+        logging.info(f"Subscription attempt: Name='{name}', Email='{email}'")
+        if name and email:
+            if email_exists(email):
+                st.warning("This email is already subscribed!")
+            else:
+                if add_subscriber(name, email):
+                    st.success(f"Thank you, {name}! A confirmation has been sent to {email}.")
+                    logging.info(f"Successfully added subscriber {email}")
+                    # send_confirmation_email(email)
+                else:
+                    st.error("Could not complete subscription. Please try again.")
+        else:
+            st.error("Please provide both a name and an email address.")
