@@ -4,47 +4,40 @@ import logging
 import streamlit as st
 from dotenv import load_dotenv
 
-# --- Connection Setup ---
-# Load environment variables from .env file
 load_dotenv()
-host = os.getenv("HOST")
-dname = os.getenv("DBNAME")
-user = os.getenv("DBUSER")
-pwd = os.getenv("PASSWORD")
-port = os.getenv("PORT")
-print("\n\n",pwd,"\n\n")
-if not host:
-    st.error("HOST environment variable is not set. Please check your .env file.")
-    st.stop()
-if not dname:
-    st.error("DBNAME environment variable is not set. Please check your .env file.")
-    st.stop()
-if not user:
-    st.error("DBUSER environment variable is not set. Please check your .env file.")
-    st.stop()
-if not pwd:
-    st.error("PWD environment variable is not set. Please check your .env file.")
-    st.stop()
-if not port:
-    st.error("PORT environment variable is not set. Please check your .env file.")
-    st.stop()
+INSTANCE_CONNECTION_NAME = os.getenv("INSTANCE_CONNECTION_NAME")
 
-# Centralized connection details
-DB_CONNECT_PARAMS = {
-    "host": host,
-    "dbname": dname,
-    "user": user,
-    "password": pwd,
-    "port": port
-}
+# Cloud Run Logs - Streamlit
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    force=True
+)
 
-# --- Database Initialization ---
+# Database connection parameters
+DB_CONNECT_PARAMS = {}
+if INSTANCE_CONNECTION_NAME:
+    # Production env - Unix socket
+    logging.info(f"Connecting via Unix socket!")
+    DB_CONNECT_PARAMS = {
+        "host": f"/cloudsql/{INSTANCE_CONNECTION_NAME}",
+        "dbname": os.getenv("DBNAME"),
+        "user": os.getenv("DBUSER"),
+        "password": os.getenv("PASSWORD")
+    }
+else:
+    # Local dev - TCP socket
+    logging.info(f"Connecting via TCP socket!")
+    DB_CONNECT_PARAMS = {
+        "host": os.getenv("HOST"),
+        "dbname": os.getenv("DBNAME"),
+        "user": os.getenv("DBUSER"),
+        "password": os.getenv("PASSWORD"),
+        "port": os.getenv("PORT")
+    }
+
+# DB Initialization
 def init_db():
-    """
-    Initializes the database by creating the subscribers table if it doesn't exist.
-    This is idempotent and safe to run on every app start.
-    """
-    # SQL command to create the table with the specified constraints
     create_table_command = """
     CREATE TABLE IF NOT EXISTS subscribers (
         id SERIAL PRIMARY KEY,
@@ -58,23 +51,18 @@ def init_db():
             with conn.cursor() as cur:
                 cur.execute(create_table_command)
             conn.commit()
-        logging.info("Database initialized successfully")
+        logging.info("Database initialized successfully.")
     except psycopg2.OperationalError as e:
-        logging.error(f"Database connection failed: {e}")
-        st.error(f"Database connection failed: {e}")
-        st.info("Please check your .env file and ensure the Cloud SQL instance is accessible.")
+        logging.error(f"DATABASE CONNECTION FAILED: {e}")
+        st.error("Failed to connect to the database. Service is temporarily unavailable.")
         st.stop()
     except Exception as e:
-        logging.exception("Unexpected error during DB initialization")
-        st.error(f"An error occurred during DB initialization: {e}")
+        logging.exception("Unexpected error during DB initialization.")
+        st.error("An unexpected error occurred during database setup.")
         st.stop()
 
-# --- Query Functions ---
+# Email check
 def email_exists(email: str) -> bool:
-    """
-    Checks if an email already exists in the subscribers table.
-    Optimized to be fast and efficient.
-    """
     query = "SELECT 1 FROM subscribers WHERE email = %s LIMIT 1;"
     try:
         with psycopg2.connect(**DB_CONNECT_PARAMS) as conn:
@@ -82,14 +70,12 @@ def email_exists(email: str) -> bool:
                 cur.execute(query, (email,))
                 return cur.fetchone() is not None
     except Exception as e:
+        logging.error(f"Error checking email: {e}")
         st.error(f"Error checking email: {e}")
-        return False # Fail safely
+        return False
 
+# Add subscriber
 def add_subscriber(name: str, email: str) -> bool:
-    """
-    Adds a new subscriber to the database.
-    Returns True on success, False on failure.
-    """
     query = "INSERT INTO subscribers (name, email) VALUES (%s, %s);"
     try:
         with psycopg2.connect(**DB_CONNECT_PARAMS) as conn:
@@ -98,10 +84,9 @@ def add_subscriber(name: str, email: str) -> bool:
             conn.commit()
         return True
     except psycopg2.errors.UniqueViolation:
-        # This error is expected if the email already exists.
-        # The UI should ideally prevent this, but this is a database-level safeguard.
         st.warning("This email address is already subscribed.")
         return False
     except Exception as e:
+        logging.error(f"Database error on adding subscriber: {e}")
         st.error(f"Database error on adding subscriber: {e}")
         return False
