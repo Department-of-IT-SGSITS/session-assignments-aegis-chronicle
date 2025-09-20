@@ -16,7 +16,7 @@ import os
 from dotenv import load_dotenv
 import logging
 from db_utils import init_db, email_exists, add_subscriber
-# from email_utils import send_confirmation_email
+from email_utils import send_confirmation_email
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
@@ -221,7 +221,7 @@ with st.form("subscribe_form", clear_on_submit=True):
                 if add_subscriber(name, email):
                     st.success(f"Thank you, {name}! A confirmation has been sent to {email}.")
                     logging.info(f"Successfully added subscriber {email}")
-                    # send_confirmation_email(email)
+                    send_confirmation_email(name, email)
                 else:
                     st.error("Could not complete subscription. Please try again.")
         else:
