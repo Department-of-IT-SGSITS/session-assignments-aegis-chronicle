@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
-from collections import Counter
-import requests
 from wordcloud import WordCloud
 import nltk
 from nltk.corpus import stopwords
@@ -17,6 +15,7 @@ from dotenv import load_dotenv
 import logging
 from db_utils import init_db, email_exists, add_subscriber
 from email_utils import send_confirmation_email
+from news_utils import fetch_news, fetch_top_headlines
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
@@ -28,56 +27,12 @@ if not NEWS_API_KEY:
 nltk.download('stopwords')
 stop_words = set(stopwords.words('english'))
 
-st.set_page_config(layout='wide')
+st.set_page_config(
+    page_title="TrendyTracker",
+    page_icon="📰",
+    layout='wide'
+)
 st.title("TrendyTracker: News Trend Analyzer")
-
-@st.cache_data(ttl=3600)
-def fetch_news(query, max_articles, from_date, to_date):
-    if not query:
-        return []
-    url = (
-        f"https://newsapi.org/v2/everything?"
-        f"q={query}&"
-        f"from={from_date.strftime('%Y-%m-%d')}&"
-        f"to={to_date.strftime('%Y-%m-%d')}&"
-        f"pageSize={min(max_articles, 100)}&"
-        f"language=en&"
-        f"sortBy=publishedAt&"
-        f"apiKey={NEWS_API_KEY}"
-    )
-    try:
-        r = requests.get(url, timeout=15)
-        r.raise_for_status()
-        data = r.json()
-        if data.get("status") == "ok":
-            return data.get("articles", [])
-        else:
-            st.warning(f"API Error: {data.get('message', 'Unknown error')}")
-            return []
-    except requests.exceptions.RequestException as e:
-        st.error(f"NewsAPI request failed: {e}")
-        return []
-
-@st.cache_data(ttl=1800)
-def fetch_top_headlines(max_articles):
-    url = (
-        f"https://newsapi.org/v2/top-headlines?"
-        f"language=en&"
-        f"pageSize={min(max_articles,100)}&"
-        f"apiKey={NEWS_API_KEY}"
-    )
-    try:
-        r = requests.get(url, timeout=15)
-        r.raise_for_status()
-        data = r.json()
-        if data.get("status") == "ok":
-            return data.get("articles", [])
-        else:
-            st.warning(f"API Error: {data.get('message', 'Unknown error')}")
-            return []
-    except requests.exceptions.RequestException as e:
-        st.error(f"NewsAPI request failed: {e}")
-        return []
 
 with st.sidebar:
     st.header("Controls")
