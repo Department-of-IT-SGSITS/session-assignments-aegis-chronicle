@@ -16,6 +16,7 @@ import logging
 from db_utils import init_db, email_exists, add_subscriber
 from email_utils import send_confirmation_email
 from news_utils import fetch_news, fetch_top_headlines
+from analysis_utils import generate_wordcloud_image
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
@@ -24,7 +25,6 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 if not NEWS_API_KEY:
     st.error("NEWS_API_KEY environment variable not set! Please check your .env file.")
     st.stop()
-nltk.download('stopwords')
 stop_words = set(stopwords.words('english'))
 
 st.set_page_config(
@@ -32,7 +32,7 @@ st.set_page_config(
     page_icon="📰",
     layout='wide'
 )
-st.title("TrendyTracker: News Trend Analyzer")
+st.title("TrendyTracker: The News Trend Analyzer")
 
 with st.sidebar:
     st.header("Controls")
@@ -80,13 +80,18 @@ def run_analysis(articles, label):
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Top Keywords")
-        text = " ".join(df["Title"].fillna("").tolist() + df["Content"].fillna("").tolist())
-        custom_stopwords = set(str(label).lower().split()) | stop_words
-        wordcloud = WordCloud(width=800, height=400, background_color='white', stopwords=custom_stopwords).generate(text) if text.strip() else WordCloud(width=800, height=400, background_color='white').generate("news world update")
-        fig_wc, ax = plt.subplots()
-        ax.imshow(wordcloud, interpolation='bilinear')
-        ax.axis('off')
-        st.pyplot(fig_wc)
+        custom = set(str(label).lower().split()) | stop_words
+        img_bytes = generate_wordcloud_image(
+            articles,
+            custom_stopwords=custom,
+            width=800,
+            height=400,
+            fallback_text="news world update",
+            collocations=True,
+            stopwords_base=stop_words,
+            random_state=42
+        )
+        st.image(img_bytes)
     with col2:
         st.subheader("Sentiment Breakdown")
         sentiment_counts = df["SentimentLabel"].value_counts()
@@ -160,7 +165,7 @@ else:
 
 st.markdown("---")
 init_db()
-st.header("Subscribe for Nightly News Digest")
+st.header("Subscribe for Daily News Digest")
 
 with st.form("subscribe_form", clear_on_submit=True):
     name = st.text_input("Name", placeholder="Your Name")

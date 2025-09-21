@@ -90,3 +90,16 @@ def add_subscriber(name: str, email: str) -> bool:
         logging.error(f"Database error on adding subscriber: {e}")
         st.error(f"Database error on adding subscriber: {e}")
         return False
+    
+# Fetch all subscribers
+def fetch_subscribers():
+    query = "SELECT name, email FROM subscribers;"
+    try:
+        with psycopg2.connect(**DB_CONNECT_PARAMS) as conn:
+            with conn.cursor() as cur:
+                cur.execute(query)
+                return cur.fetchall()
+    except Exception as e:
+        logging.error(f"Error fetching subscribers: {e}")
+        st.error(f"Error fetching subscribers: {e}")
+        return []
