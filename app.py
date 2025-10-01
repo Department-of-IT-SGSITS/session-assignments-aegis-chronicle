@@ -38,6 +38,7 @@ with st.sidebar:
     st.header("Controls")
     mode = st.radio("Mode", ["Top Headlines", "Search"], index=0)
     query = st.text_input("Search Topic", "India", disabled=(mode == "Top Headlines"))
+    exact_match = st.checkbox("Exact Phrase Search", value=False, disabled=(mode == "Top Headlines"))
     num_articles = st.slider("Articles to Analyze", min_value=10, max_value=100, value=50, step=5)
     default_start = datetime.now() - timedelta(days=14)
     default_end = datetime.now()
@@ -160,7 +161,7 @@ else:
     if not query:
         st.warning("Please enter a search topic.")
         st.stop()
-    articles = fetch_news(query, num_articles, start_date, end_date)
+    articles = fetch_news(query, num_articles, start_date, end_date, exact_match)
     run_analysis(articles, f"'{query}'")
 
 st.markdown("---")

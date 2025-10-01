@@ -8,16 +8,19 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
 # Fetch news articles based on query and date range
 @st.cache_data(ttl=3600)
-def fetch_news(query, max_articles, from_date, to_date):
+def fetch_news(query, max_articles, from_date, to_date, exact_match=False):
     if not NEWS_API_KEY:
         st.error("NEWS_API_KEY is not configured.")
         return []
     if not query:
         return []
+
+    # If exact_match is True, wrap the query in double quotes
+    search_query = f'"{query}"' if exact_match else query
         
     url = (
         f"https://newsapi.org/v2/everything?"
-        f"q={query}&"
+        f"q={search_query}&"
         f"from={from_date.strftime('%Y-%m-%d')}&"
         f"to={to_date.strftime('%Y-%m-%d')}&"
         f"pageSize={min(max_articles, 100)}&"
