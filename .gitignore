@@ -1,0 +1,12 @@
+# Environment variables
+.env
+
+# Google Cloud credentials
+*.json
+
+# Python artifacts
+venv/
+__pycache__/
+*.pyc
+
+cloud-sql-proxy

@@ -1,0 +1,50 @@
+steps:
+# Build the Streamlit App Image
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/trendytracker', '.']
+  id: 'Build Streamlit App'
+
+# Build the Digest Service Image 
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/digest-service-image', '-f', 'DailyDigest/Dockerfile', '.']
+  id: 'Build Digest Service'
+
+# Push Both Images to the Registry
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/$PROJECT_ID/trendytracker']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'gcr.io/$PROJECT_ID/digest-service-image']
+
+# Deploy the Streamlit App Service
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args:
+    - 'run'
+    - 'deploy'
+    - 'trendytracker-service'
+    - '--image=gcr.io/$PROJECT_ID/trendytracker'
+    - '--region=us-central1'
+    - '--platform=managed'
+    - '--allow-unauthenticated'
+    - '--add-cloudsql-instances=newstrendanalyzer:us-central1:trendytracker-subscribers'
+    - '--set-env-vars=INSTANCE_CONNECTION_NAME=newstrendanalyzer:us-central1:trendytracker-subscribers'
+    - '--set-secrets=NEWS_API_KEY=NEWS_API_KEY:latest,DBUSER=DBUSER:latest,PASSWORD=PASSWORD:latest,DBNAME=DBNAME:latest,HOST=HOST:latest,BREVO_API_KEY=BREVO_API_KEY:latest'
+
+# Deploy the Digest Service
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args:
+    - 'run'
+    - 'deploy'
+    - 'digest-service'
+    - '--image=gcr.io/$PROJECT_ID/digest-service-image'
+    - '--region=us-central1'
+    - '--platform=managed'
+    - '--no-allow-unauthenticated'
+    - '--add-cloudsql-instances=newstrendanalyzer:us-central1:trendytracker-subscribers'
+    - '--set-env-vars=INSTANCE_CONNECTION_NAME=newstrendanalyzer:us-central1:trendytracker-subscribers'
+    - '--set-secrets=NEWS_API_KEY=NEWS_API_KEY:latest,DBUSER=DBUSER:latest,PASSWORD=PASSWORD:latest,DBNAME=DBNAME:latest,BREVO_API_KEY=BREVO_API_KEY:latest'
+
+images:
+- 'gcr.io/$PROJECT_ID/trendytracker'
+- 'gcr.io/$PROJECT_ID/digest-service-image'

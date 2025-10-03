@@ -1,0 +1,26 @@
+# Ignore Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environments
+venv/
+env/
+
+# Ignore Git files
+.git
+.gitignore
+
+# Ignore build and log files
+*.log
+*.out
+*.tmp
+
+# Ignore local tools / binaries
+cloud-sql-proxy
+*.DS_Store
+
+# Ignore dotenvs and secrets
+.env
+*.secret
